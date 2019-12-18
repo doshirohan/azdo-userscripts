@@ -1,6 +1,6 @@
 // ==UserScript==
 
-// @name         AzDO Pull Request Improvements
+// @name         FINALE
 // @version      2.30.1
 // @author       Alejandro Barreto (National Instruments)
 // @description  Adds sorting and categorization to the PR dashboard. Also adds minor improvements to the PR diff experience, such as a base update selector and per-file checkboxes.
@@ -42,10 +42,10 @@
   lscache.setBucket('acb-azdo/');
 
   // Call our event handler if we notice new elements being inserted into the DOM. This happens as the page is loading or updating dynamically based on user activity. We throttle new element events to avoid using up CPU when AzDO is adding a lot of elements during a short time (like on page load).
-  document.addEventListener('DOMNodeInserted', _.throttle(onPageDOMNodeInserted, 400));
+  document.addEventListener('DOMNodeInserted', _.throttle(onPageDOMNodeInserted_FINALE, 400));
 
   // This is "main()" for this script. Runs periodically when the page updates.
-  function onPageDOMNodeInserted(event) {
+  function onPageDOMNodeInserted_FINALE(event) {
     // The page may not have refreshed when moving between URLs--sometimes AzDO acts as a single-page application. So we must always check where we are and act accordingly.
     if (/\/(pullrequest)\//i.test(window.location.pathname)) {
       addCheckboxesToFiles();
@@ -61,9 +61,116 @@
     }
 
     applyNicerScrollbars();
+
+      if (/\/(pullrequest)\//i.test(window.location.pathname)) {
+        applyFinaleSourceBrowserStyle()
+      }
   }
 
-  function applyStickyPullRequestComments() {
+  function applyFinaleSourceBrowserStyle() {
+    $('.vc-discussion-thread-comment-content .discussion-renderedcontent a').once('apply-finale-style').each(async function () {
+      await sleep(100);
+      const lowerCasePrefix = 'https://ni.visualstudio.com/DevCentral/';
+      const href = this.getAttribute('href')
+      if(href.match(new RegExp(`^${lowerCasePrefix}`, "i"))) {
+        // src: https://jsfiddle.net/princebazawule/gk1h94gs/
+        addStyleOnce('finale-sourcebrowser-overlay', /* CSS */ `
+        .transition {
+          transition: all 0.25s ease-in-out;
+        }
+        
+        #finale-overlay {
+          position: fixed;
+          background: rgba(48, 69, 92, 0.5);
+          width: 100%;
+          height: 100%;
+          top: 0;
+          left: 0;
+          text-align: center;
+          z-index: 9999;
+          display: none;
+        }
+        #finale-overlay iframe {
+          margin-top: 10%;
+        }
+      
+        
+        #container {
+          background: rgba(255, 104, 115, 1);
+          display: flex;
+          flex-flow: column nowrap;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100vh;
+          text-transform: uppercase;
+        
+          header {
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 700;
+            font-size: 1.5em;
+            color: rgba(254, 255, 250, 1);
+            line-height: 1;
+            padding: 0.5em 2em;
+            border-bottom: 0.5em solid rgba(220, 231, 235, 0.25);
+          }
+          a.view-slide {
+            font-size: 0.9em;
+            font-family: 'Ubuntu', sans-serif;
+            font-weight: 400;
+            text-decoration: none;
+            color: rgba(34, 190, 198, 1);
+            background: rgba(254, 255, 250, 1);
+            margin-top: 2em;
+            padding: 1.2em;
+            border-radius: 0.25em;
+            @extend .transition;
+            &:hover {
+              color: rgba(48, 69, 92, 0.5);
+              background: rgba(48, 69, 92, 0.15);
+            }
+          }
+        }`);
+
+        $(this).addClass('view-slide');
+        $(this).click(function() {
+          var url = "https://localhost:8081/finale.html/?q=/src/Graphics/CreateCircle.vi#BlockDiagram"
+           // this.getAttribute('href') // "http://inrf-alexa:8082/?q=/src/DATS/Framework/2.0.1/Scripts/UpdateFINALE.vi#BlockDiagram";
+          showFinaleOverlay(url);
+          return false;
+        });
+      } else {
+        console.log('link not found')
+      }
+  })
+}
+
+function showFinaleOverlay(url) {
+  var $finaleOverlay = $("#finale-overlay");
+  if($finaleOverlay.length != 1) {
+    $finaleOverlay = $(`
+      <div id="finale-overlay">
+        <iframe width="595" height="485" frameborder="0" marginwidth="0" margin="0" height="0" scrolling="no" allowfullscreen></iframe>
+      </div>`);
+  }
+  const $iframe = $finaleOverlay.children(0);
+  
+  // append overlay to body
+  $('body').append($finaleOverlay);
+  
+  // update overlay with iframe
+  $iframe.attr('src', url);
+  // show overlay
+  $finaleOverlay.show();
+
+  // when overlay is clicked
+  $finaleOverlay.click(function() {
+    $finaleOverlay.hide();
+    $iframe.attr('src', 'about:blank');
+  });
+}
+
+function applyStickyPullRequestComments() {
     // Comments that start with this string become sticky. Only the first comment of the thread counts.
     const lowerCasePrefix = 'note:';
 
